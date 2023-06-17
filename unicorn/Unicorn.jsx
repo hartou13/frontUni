@@ -7,6 +7,7 @@ import UniSearchInput from './UniSearchInput';
 import SmartPagination from '../gen/SmartPagination';
 import CsvExport from '../gen/CsvExport';
 import UniFiche from './UniFiche';
+import FileUploadComponent from '../gen/FileUploadComponent';
 class Unicorn extends Component {
     constructor(props) {
         super(props);
@@ -54,7 +55,7 @@ class Unicorn extends Component {
         let listC = val.data.infoClasse.listeChamp;
         let res = this.getWriteableObject(listC);
         this.setState({ champ: val.data.infoClasse, total: Math.ceil(val.data.liste / this.state.nb), formState: res });
-        document.getElementById('searchButton').click();
+        document.getElementById('searchButtonInit').click();
 
     }
     openModal = () => {
@@ -243,6 +244,20 @@ class Unicorn extends Component {
                 <button className="btn btn-success" onClick={this.prepareInsert}>Inserer</button>
             </React.Fragment>
     }
+    searchCheck = () => {
+        if (this.props.search != false)
+            return <React.Fragment>
+                <div class="col-xl-2">
+                    <h3>recherche</h3>
+                    <form id="searchform">
+
+                        {/* <UniSearchInput field={this.state.champ.listeChamp[0]} ></UniSearchInput> */}
+                        {this.state.champ.listeChamp.map(field => <UniSearchInput field={field} ></UniSearchInput>)}
+                        <button className="btn btn-primary" id='searchButton' onClick={this.handleSearchSubmit}>Rechercher</button>
+                    </form>
+                </div>
+            </React.Fragment>
+    }
     buttonCheck = (row) => {
         if (this.props.CUD != false)
             return <React.Fragment>
@@ -289,7 +304,6 @@ class Unicorn extends Component {
             event.preventDefault();
 
         let form = document.getElementById("searchform");
-        let formData = new FormData(form);
         let object = {
             kv: [],
             kin: [],
@@ -298,87 +312,90 @@ class Unicorn extends Component {
             page: this.state.page,
             nb: this.state.nb,
         };
-        if (this.props.spKv != null)
-            object.kin.push(this.props.spKv)
-        let o2 = [];
-        formData.forEach((value, key) => o2.push({ key: key, value: value }));
-        console.log(o2);
+        if (form !== null) {
+            let formData = new FormData(form);
+            if (this.props.spKv != null)
+                object.kin.push(this.props.spKv)
+            let o2 = [];
+            formData.forEach((value, key) => o2.push({ key: key, value: value }));
+            console.log(o2);
 
-        let champs = this.state.champ.listeChamp;
-        for (let index = 0; index < champs.length; index++) {
-            const element = champs[index];
-            // let toPut={};
-            if (element.readable === false)
-                continue
-            if (element.inputType === "select") {
-                for (let i2 = 0; i2 < o2.length; i2++) {
-                    const e2 = o2[i2];
-                    if (e2.value === "")
-                        continue
-                    // console.log(e2);
-                    if (e2.key === element.fieldName) {
-                        console.log(e2);
-                        let tao = false;
-                        for (let i3 = 0; i3 < object.kChoice.length; i3++) {
-                            const e3 = object.kChoice[i3];
-                            if (e3.key === e2.key) {
-                                console.log("tao");
-                                tao = true;
-                                e3.tab.push(e2.value);
+            let champs = this.state.champ.listeChamp;
+            for (let index = 0; index < champs.length; index++) {
+                const element = champs[index];
+                // let toPut={};
+                if (element.readable === false)
+                    continue
+                if (element.inputType === "select") {
+                    for (let i2 = 0; i2 < o2.length; i2++) {
+                        const e2 = o2[i2];
+                        if (e2.value === "")
+                            continue
+                        // console.log(e2);
+                        if (e2.key === element.fieldName) {
+                            console.log(e2);
+                            let tao = false;
+                            for (let i3 = 0; i3 < object.kChoice.length; i3++) {
+                                const e3 = object.kChoice[i3];
+                                if (e3.key === e2.key) {
+                                    console.log("tao");
+                                    tao = true;
+                                    e3.tab.push(e2.value);
+                                }
+                            }
+                            if (!tao) {
+                                console.log("tsy tao");
+                                object.kChoice.push({ key: e2.key, tab: [e2.value] });
                             }
                         }
-                        if (!tao) {
-                            console.log("tsy tao");
-                            object.kChoice.push({ key: e2.key, tab: [e2.value] });
-                        }
+
                     }
+                }
+                else if (element.inputType === "integer" || element.inputType === "float") {
+                    let crit = {
+                        key: element.fieldName
+                    }
+                    for (let i2 = 0; i2 < o2.length; i2++) {
+                        const e2 = o2[i2];
+                        if (e2.value === "")
+                            continue
 
+                        if (e2.key === "min" + element.fieldName)
+                            crit.min = Number.parseFloat(e2.value);
+                        if (e2.key === "max" + element.fieldName)
+                            crit.max = Number.parseFloat(e2.value);
+                    }
+                    if ("min" in crit || "max" in crit)
+                        object.kin.push(crit)
                 }
-            }
-            else if (element.inputType === "integer" || element.inputType === "float") {
-                let crit = {
-                    key: element.fieldName
+                else if (element.inputType === "date" || element.inputType === "datetime") {
+                    let crit = {
+                        key: element.fieldName,
+                    }
+                    for (let i2 = 0; i2 < o2.length; i2++) {
+                        const e2 = o2[i2];
+                        console.log(e2);
+                        if (e2.value === "")
+                            break
+                        if (e2.key === "min" + element.fieldName)
+                            crit.min = e2.value
+                        if (e2.key === "max" + element.fieldName)
+                            crit.max = e2.value
+                    }
+                    if ("min" in crit || "max" in crit)
+                        object.kiDates.push(crit)
                 }
-                for (let i2 = 0; i2 < o2.length; i2++) {
-                    const e2 = o2[i2];
-                    if (e2.value === "")
-                        continue
+                else {
+                    for (let i2 = 0; i2 < o2.length; i2++) {
+                        const e2 = o2[i2];
+                        if (e2.value === "")
+                            continue
+                        if (e2.key === element.fieldName)
+                            object.kv.push({ key: element.fieldName, value: e2.value })
+                    }
+                }
 
-                    if (e2.key === "min" + element.fieldName)
-                        crit.min = Number.parseFloat(e2.value);
-                    if (e2.key === "max" + element.fieldName)
-                        crit.max = Number.parseFloat(e2.value);
-                }
-                if ("min" in crit || "max" in crit)
-                    object.kin.push(crit)
             }
-            else if (element.inputType === "date" || element.inputType === "datetime") {
-                let crit = {
-                    key: element.fieldName,
-                }
-                for (let i2 = 0; i2 < o2.length; i2++) {
-                    const e2 = o2[i2];
-                    console.log(e2);
-                    if (e2.value === "")
-                        break
-                    if (e2.key === "min" + element.fieldName)
-                        crit.min = e2.value
-                    if (e2.key === "max" + element.fieldName)
-                        crit.max = e2.value
-                }
-                if ("min" in crit || "max" in crit)
-                    object.kiDates.push(crit)
-            }
-            else {
-                for (let i2 = 0; i2 < o2.length; i2++) {
-                    const e2 = o2[i2];
-                    if (e2.value === "")
-                        continue
-                    if (e2.key === element.fieldName)
-                        object.kv.push({ key: element.fieldName, value: e2.value })
-                }
-            }
-
         }
         console.log(object);
 
@@ -465,14 +482,9 @@ class Unicorn extends Component {
     render() {
         return (
             <div class="row">
-                <div class="col-xl-2">
-                    <form id="searchform">
+                {this.searchCheck()}
 
-                        {/* <UniSearchInput field={this.state.champ.listeChamp[0]} ></UniSearchInput> */}
-                        {this.state.champ.listeChamp.map(field => <UniSearchInput field={field} ></UniSearchInput>)}
-                        <button className="btn btn-primary" id='searchButton' onClick={this.handleSearchSubmit}>Rechercher</button>
-                    </form>
-                </div>
+                <button style={{ display: "none" }} className="btn btn-primary" id='searchButtonInit' onClick={this.handleSearchSubmit}>Rechercher</button>
 
                 <Modal
                     isOpen={this.state.modalOpen}
@@ -512,7 +524,7 @@ class Unicorn extends Component {
                             {this.insertCheck()}
                             <button className="btn btn-success" onClick={this.preparePdf}>Telecharger Pdf</button>
                             <CsvExport url={this.props.path} modele={this.title()}></CsvExport>
-
+                            <FileUploadComponent url={this.props.path}></FileUploadComponent>
                             {this.getColumn()}
                         </thead>
                         <tbody class="table-group-divider">
